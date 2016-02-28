@@ -285,7 +285,7 @@ BOX_NAME=awsnetwork
 
 echo $BOX_NAME
 
-prudentia local <<EOF
+prudentia local &lt;&lt;EOF
 unregister $BOX_NAME
 register
 $BOX_PLAYBOOK
