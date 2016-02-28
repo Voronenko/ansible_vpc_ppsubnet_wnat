@@ -327,4 +327,8 @@ I recommend to store and evolve deployment and provisioning recipes with your ap
 Believe me, when you know that you can put your environment up from scratch saying in 10-40 minutes,
 your customer will be less nervous :)
 
+If you would use that approach to implement different case of network setup, I would be grateful if you share your experience.
 If you need to implement continuous integration on your project - you are welcome.
+
+Mentioned samples for use with Ansible v1 (1.9.4) could be seen on or forked
+from https://github.com/Voronenko/ansible_vpc_ppsubnet_wnat/tree/master/v1
