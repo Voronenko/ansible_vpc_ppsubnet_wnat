@@ -20,7 +20,7 @@ For the demo let's choose more complex setup, as described here
 
 Let's take a look on definition, and network topology picture:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/98-nat-gateway-diagram.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/98-nat-gateway-diagram.png)
 
 The configuration for this scenario includes a virtual private cloud (VPC) with a public subnet and a private subnet. We recommend this scenario if you want to run a public-facing web application, while maintaining back-end servers that aren't publicly accessible. A common example is a multi-tier website, with the web servers in a public subnet and the database servers in a private subnet. You can set up security and routing so that the web servers can communicate with the database servers.
 
@@ -33,7 +33,7 @@ In our scenario we will use both functions from Ansible AWS module, and direct a
 
 At the beginning, we would have no VPC on our account:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/00-initial_state.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/00-initial_state.png)
 
 ## Define VPC
 
@@ -107,21 +107,21 @@ To create VPC, we use already available Ansible module, ec2_vpc; On run we provi
 
 Upon this part execution we will have VPC created alongside with subnets:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/02-vpc.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/02-vpc.png)
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/03-subnets.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/03-subnets.png)
 
 Take a look on Nat gateways created - as you see, we have 1 Nat gateway per public subnet.
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/08-nat_gateways.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/08-nat_gateways.png)
 
 Take a look on route table created, as you see - public subnets have internet gateway set,
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/04-routetable_public.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/04-routetable_public.png)
 
 while private subnet have route entry that forwards outgoing requests through NAT.
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/05-routetable-private.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/05-routetable-private.png)
 
 ## Nat instances magic.
 
@@ -143,7 +143,7 @@ Please note, that by default each account is limited to 5 elastic ips per region
 
 </pre>
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/07-eip.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/07-eip.png)
 
 in order to create NAT gateway, in Ansible v1 we have to use awscli:
 
@@ -157,7 +157,7 @@ in order to create NAT gateway, in Ansible v1 we have to use awscli:
 Here little hack: if you need immediately use Nat gateway, for example, to create custom routing table,-
 give AWS time to partially initialize and register it:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/99-misc-natinstances.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/99-misc-natinstances.png)
 
 Now we can create custom route tables:
 
@@ -248,23 +248,23 @@ Let's check setup created:
 
 List of secutity groups created:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/09-sg.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/09-sg.png)
 
 Public security group with inbound rules:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/10-sg_public.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/10-sg_public.png)
 
 Private app servers group with inbound rules:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/11_sg_app.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/11_sg_app.png)
 
 Database access security group with inbound rules:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/12_sg_rds.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/12_sg_rds.png)
 
 Jump box security group with inbound rules:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/14_sg_jumpbox.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/14_sg_jumpbox.png)
 
 
 ## Running the provisioning
@@ -318,7 +318,7 @@ PLAY RECAP ********************************************************************
 At the end you will have all the information about network created, so you can store it,
 or template to some configuration file:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v1/images/01-provisioning.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/01-provisioning.png)
 
 
 ## Points of Interest
@@ -330,5 +330,5 @@ your customer will be less nervous :)
 If you would use that approach to implement different case of network setup, I would be grateful if you share your experience.
 If you need to implement continuous integration on your project - you are welcome.
 
-Mentioned samples for use with Ansible v1 (1.9.4) could be seen on or forked
-from https://github.com/Voronenko/ansible_vpc_ppsubnet_wnat/tree/master/v1
+Mentioned samples for use with Ansible v2 (2.0.2.0) could be seen on or forked
+from https://github.com/Voronenko/ansible_vpc_ppsubnet_wnat/tree/master/v2
