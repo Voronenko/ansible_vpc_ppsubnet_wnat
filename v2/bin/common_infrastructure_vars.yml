@@ -1,0 +1,74 @@
+  readable_env_name: "app-{{env}}"
+
+  vpc_cidr_block: 10.0.0.0/16
+  vpc_subnets:
+    - cidr: 10.0.0.0/24
+      az: "{{aws_region}}{{vpc_availability_zone_t1}}"
+      resource_tags: {"Name": "{{readable_env_name}}-sb-pub-{{aws_region}}-{{vpc_availability_zone_t1}}",  "Environment":"{{readable_env_name}}", "AZ" : "{{vpc_availability_zone_t1}}" }
+    - cidr: 10.0.2.0/24
+      az: "{{aws_region}}{{vpc_availability_zone_t2}}"
+      resource_tags: { "Name": "{{readable_env_name}}-sb-pub-{{aws_region}}-{{vpc_availability_zone_t2}}", "Environment":"{{readable_env_name}}", "AZ" : "{{vpc_availability_zone_t2}}" }
+    - cidr: 10.0.1.0/24
+      az: "{{aws_region}}{{vpc_availability_zone_t1}}"
+      resource_tags: {"Name": "{{readable_env_name}}-sb-priv-{{aws_region}}-{{vpc_availability_zone_t1}}",  "Environment":"{{readable_env_name}}", "AZ" : "{{vpc_availability_zone_t1}}" }
+    - cidr: 10.0.3.0/24
+      az: "{{aws_region}}{{vpc_availability_zone_t2}}"
+      resource_tags: { "Name": "{{readable_env_name}}-sb-priv-{{aws_region}}-{{vpc_availability_zone_t2}}", "Environment":"{{readable_env_name}}", "AZ" : "{{vpc_availability_zone_t2}}" }
+
+  vpc_internet_gateway: "yes"
+  vpc_route_tables_public:
+      - subnets:
+         - 10.0.0.0/24
+         - 10.0.2.0/24
+        routes:
+         - dest: 0.0.0.0/0
+           gw: igw
+
+  vpc_security_groups:
+    - name: "{{readable_env_name}}-public-LOADBALANCER"
+      desc: "security group for public access"
+      rules:
+        - proto: tcp
+          from_port: 80
+          to_port: 80
+          cidr_ip: 0.0.0.0/0
+        - proto: tcp
+          from_port: 443
+          to_port: 443
+          cidr_ip: 0.0.0.0/0
+
+    - name: "{{readable_env_name}}-public-JUMPBOX"
+      desc: "security group that allows access from dedicated jump box in public network to internal resources"
+      rules:
+        - proto: tcp
+          from_port: 22
+          to_port: 22
+          cidr_ip: "1.2.3.4/32" #Your office private ip
+
+    - name: "{{readable_env_name}}-private-APP"
+      desc: "Network for internal app servers"
+      rules:
+        - proto: tcp
+          from_port: 22
+          to_port: 22
+          group_id: "{{readable_env_name}}-public-JUMPBOX"
+        - proto: tcp
+          from_port: 80
+          to_port: 80
+          group_id: "{{readable_env_name}}-public-LOADBALANCER"
+        - proto: tcp
+          from_port: 443
+          to_port: 443
+          group_id: "{{readable_env_name}}-public-LOADBALANCER"
+        - proto: icmp
+          from_port: -1 # icmp type, -1 = any type
+          to_port:  -1 # icmp subtype, -1 = any subtype
+          group_id: "{{readable_env_name}}-public-JUMPBOX"
+
+    - name: "{{readable_env_name}}-private-DATABASE"
+      desc: "resources that are private"
+      rules:
+        - proto: tcp
+          from_port: 3306  # MYSQL
+          to_port: 3306
+          group_id: "{{readable_env_name}}-private-APP"

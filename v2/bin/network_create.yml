@@ -1,0 +1,19 @@
+
+- hosts: all
+
+  vars:
+    - root_dir: ..
+
+  vars_files:
+    - ./common_infrastructure_vars.yml
+
+  pre_tasks:
+    - name: Include AWS related vars
+      include_vars: "{{ item }}"
+      with_first_found:
+       - "aws-{{aws_region}}-{{env}}-vars.yml"
+       - "aws-{{aws_region}}-vars.yml"
+       - "aws-default-vars.yml"
+
+  tasks:
+    - include: '{{root_dir}}/components/network_create.yml'
