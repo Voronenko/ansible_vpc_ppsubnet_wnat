@@ -55,7 +55,7 @@
     with_items:   "{{vpc_security_groups}}"
     when: aws_vpc_id is not defined
 
-  - set_fact: aws_vpc_id_runtime={{ lookup('aws_vpc_id_from_name', aws_region, env + '-vpc') }}
+  - set_fact: aws_vpc_id_runtime={{ lookup('aws_vpc_id_from_name', aws_region, readable_env_name  + '-vpc') }}
 
   - set_fact: aws_vpc_privsubnet1_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-priv-' + aws_region + '-' + vpc_availability_zone_t1]) }}
     when: aws_vpc_privsubnet1 is not defined
