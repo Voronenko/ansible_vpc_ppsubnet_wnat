@@ -165,7 +165,7 @@
   - debug: msg="Looks like your VPC, subnetworks and security groups were already configured previously. Check environment yml config for details."
     when: aws_vpc_id is defined
 
-  - debug: msg="aws_vpc_id :{{ lookup('aws_vpc_id_from_name', aws_region, readable_env_name + '-vpc-' + aws_region) }}"
+  - debug: msg="aws_vpc_id :{{ lookup('aws_vpc_id_from_name', aws_region, readable_env_name + '-vpc') }}"
     when: aws_vpc_id is not defined
 
   - debug: msg="aws_vpc_privsubnet1 :{{ aws_vpc_privsubnet1_runtime }}"
