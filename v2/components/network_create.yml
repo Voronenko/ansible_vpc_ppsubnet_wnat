@@ -52,7 +52,7 @@
       vpc_id: "{{vpc.vpc_id}}"
       region: "{{ aws_region }}"
       rules: "{{item.rules}}"
-    with_items:   vpc_security_groups
+    with_items:   "{{vpc_security_groups}}"
     when: aws_vpc_id is not defined
 
   - set_fact: aws_vpc_id_runtime={{ lookup('aws_vpc_id_from_name', aws_region, env + '-vpc') }}
@@ -193,5 +193,5 @@
   - fail: msg="If you just created VPC, time to stop and create environment file aws-REGION-ENV.yml so the application deployment recipe may use these data"
     when: "{{item}} is not defined"
     with_items:
-     - aws_vpc_privsubnet1
-     - aws_vpc_privsubnet2
+     - "{{aws_vpc_privsubnet1}}"
+     - "{{aws_vpc_privsubnet2}}"
