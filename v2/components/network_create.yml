@@ -193,5 +193,5 @@
   - fail: msg="If you just created VPC, time to stop and create environment file aws-REGION-ENV.yml so the application deployment recipe may use these data"
     when: "{{item}} is not defined"
     with_items:
-     - "{{aws_vpc_privsubnet1}}"
-     - "{{aws_vpc_privsubnet2}}"
+     - aws_vpc_privsubnet1
+     - aws_vpc_privsubnet2
