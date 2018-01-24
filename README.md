@@ -5,6 +5,9 @@ Ansible 1:  v1/
 
 Ansible 2:  v2/
 
+Ansible 2.4:  v2.4/
+
+
 See article
 
 http://www.codeproject.com/Articles/1081572/Automating-network-mastering-scenarios-for-Amazon
