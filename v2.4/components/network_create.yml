@@ -9,9 +9,9 @@
        - "aws_vpc_pubsubnet2 is defined"
        - "aws_vpc_privsubnet1 is defined"
        - "aws_vpc_privsubnet2 is defined"
-       - "aws_sg_public is defined"
-       - "aws_sg_private is defined"
-       - "aws_sg_app is defined"
+       - "aws_sg_pub is defined"
+       - "aws_sg_priv is defined"
+       - "aws_sg_api is defined"
        - "vpc_availability_zone_t1 is defined"
        - "vpc_availability_zone_t2 is defined"
     when: aws_vpc_id is defined
@@ -41,32 +41,73 @@
     register: vpc
     when: aws_vpc_id is not defined
 
+  # - set_fact:
+  #     vpc: "{{ vpc_output.stdout|from_json }}"
 
-  - debug: var=vpc
+  - name: NETWORK | Print newly created VPC
+    debug: var=vpc
     when: aws_vpc_id is not defined
 
-  - name: NETWORK | Creating security groups
+  - name: NETWORK | Creating security groups (elb)
     ec2_group:
       name: "{{item.name}}"
       description: "{{item.desc}}"
       vpc_id: "{{vpc.vpc_id}}"
       region: "{{ aws_region }}"
       rules: "{{item.rules}}"
-    with_items:   "{{vpc_security_groups}}"
+    with_items: "{{vpc_security_groups_elb}}"
     when: aws_vpc_id is not defined
 
-  - set_fact: aws_vpc_id_runtime={{ lookup('aws_vpc_id_from_name', aws_region, readable_env_name  + '-vpc') }}
+  - name: NETWORK | Creating security groups (bastion)
+    ec2_group:
+      name: "{{item.name}}"
+      description: "{{item.desc}}"
+      vpc_id: "{{vpc.vpc_id}}"
+      region: "{{ aws_region }}"
+      rules: "{{item.rules}}"
+    with_items: "{{vpc_security_groups_bastion}}"
+    when: aws_vpc_id is not defined
 
-  - set_fact: aws_vpc_privsubnet1_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-priv-' + aws_region + '-' + vpc_availability_zone_t1]) }}
+  - name: NETWORK | Creating security groups (cluster)
+    ec2_group:
+      name: "{{item.name}}"
+      description: "{{item.desc}}"
+      vpc_id: "{{vpc.vpc_id}}"
+      region: "{{ aws_region }}"
+      rules: "{{item.rules}}"
+    with_items: "{{vpc_security_groups_cluster}}"
+    when: aws_vpc_id is not defined
+
+
+  - name: NETWORK | Creating security groups (datalayer)
+    ec2_group:
+      name: "{{item.name}}"
+      description: "{{item.desc}}"
+      vpc_id: "{{vpc.vpc_id}}"
+      region: "{{ aws_region }}"
+      rules: "{{item.rules}}"
+    with_items: "{{vpc_security_groups_datalayer}}"
+    when: aws_vpc_id is not defined
+
+
+  - name: "NETWORK | aws_vpc_id_runtime={{ lookup('aws_vpc_id_from_name', aws_region, readable_env_name + '-vpc-' + aws_region) }}"
+    set_fact: aws_vpc_id_runtime={{ lookup('aws_vpc_id_from_name', aws_region, readable_env_name + '-vpc-' + aws_region) }}
+
+ 
+  - name: "NETWORK | aws_vpc_privsubnet1_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-priv-' + aws_region + '-' + vpc_availability_zone_t1]) }}"
+    set_fact: aws_vpc_privsubnet1_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-priv-' + aws_region + '-' + vpc_availability_zone_t1]) }}
     when: aws_vpc_privsubnet1 is not defined
 
-  - set_fact: aws_vpc_privsubnet2_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-priv-' + aws_region + '-' + vpc_availability_zone_t2]) }}
+  - name: "NETWORK | aws_vpc_privsubnet2_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-priv-' + aws_region + '-' + vpc_availability_zone_t2]) }}"
+    set_fact: aws_vpc_privsubnet2_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-priv-' + aws_region + '-' + vpc_availability_zone_t2]) }}
     when: aws_vpc_privsubnet2 is not defined
 
-  - set_fact: aws_vpc_pubsubnet1_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-pub-' + aws_region + '-' + vpc_availability_zone_t1]) }}
+  - name: "NETWORK | aws_vpc_pubsubnet1_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-pub-' + aws_region + '-' + vpc_availability_zone_t1]) }}"
+    set_fact: aws_vpc_pubsubnet1_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-pub-' + aws_region + '-' + vpc_availability_zone_t1]) }}
     when: aws_vpc_pubsubnet1 is not defined
 
-  - set_fact: aws_vpc_pubsubnet2_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-pub-' + aws_region + '-' + vpc_availability_zone_t2]) }}
+  - name: NETWORK | aws_vpc_pubsubnet2_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-pub-' + aws_region + '-' + vpc_availability_zone_t2]) }}"  
+    set_fact: aws_vpc_pubsubnet2_runtime={{ lookup('aws_subnet_ids_from_names', aws_region, [readable_env_name + '-sb-pub-' + aws_region + '-' + vpc_availability_zone_t2]) }}
     when: aws_vpc_pubsubnet2 is not defined
 
 
@@ -80,7 +121,8 @@
     when: aws_vpc_privsubnet2 is not defined
     register: eip_2
 
-  - set_fact: aws_vpc_privsubnet1_allocation={{ lookup('aws_ec2_allocation_id_from_eip', aws_region, eip_1.public_ip) }}
+  - name: "NETWORK | aws_vpc_privsubnet1_allocation={{ lookup('aws_ec2_allocation_id_from_eip', aws_region, eip_1.public_ip) }}"
+    set_fact: aws_vpc_privsubnet1_allocation={{ lookup('aws_ec2_allocation_id_from_eip', aws_region, eip_1.public_ip) }}
     when: aws_vpc_privsubnet1 is not defined
 
   - name: NETWORK | Create NAT instance for subnet 1
@@ -88,16 +130,19 @@
     when: aws_vpc_privsubnet1 is not defined
     register: nat_instance1_raw
 
-  - set_fact:
+  - name: FACT nat_instance1_json
+    set_fact:
       nat_instance1_json: "{{ nat_instance1_raw.stdout|from_json }}"
     when: aws_vpc_privsubnet1 is not defined
 
-  - set_fact:
+  - name: "FACT nat_instance1 = {{ nat_instance1_json.NatGateway.NatGatewayId }}"
+    set_fact:
       nat_instance1: "{{ nat_instance1_json.NatGateway.NatGatewayId }}"
     when: aws_vpc_privsubnet1 is not defined
 
 
-  - set_fact: aws_vpc_privsubnet2_allocation={{ lookup('aws_ec2_allocation_id_from_eip', aws_region, eip_2.public_ip) }}
+  - name: "FACT aws_vpc_privsubnet2_allocation = {{ lookup('aws_ec2_allocation_id_from_eip', aws_region, eip_2.public_ip) }}"
+    set_fact: aws_vpc_privsubnet2_allocation={{ lookup('aws_ec2_allocation_id_from_eip', aws_region, eip_2.public_ip) }}
     when: aws_vpc_privsubnet2 is not defined
 
   - name: NETWORK | Create NAT instance for subnet 2
@@ -105,11 +150,13 @@
     when: aws_vpc_privsubnet2 is not defined
     register: nat_instance2_raw
 
-  - set_fact:
+  - name: FACT nat_instance2_json
+    set_fact:
       nat_instance2_json: "{{ nat_instance2_raw.stdout|from_json }}"
     when: aws_vpc_privsubnet2 is not defined
 
-  - set_fact:
+  - name: "FACT nat_instance2={{ nat_instance2_json.NatGateway.NatGatewayId }}"
+    set_fact:
       nat_instance2: "{{ nat_instance2_json.NatGateway.NatGatewayId }}"
     when: aws_vpc_privsubnet2 is not defined
 
@@ -122,11 +169,13 @@
     register: routetable_private_1_raw
     when: aws_vpc_privsubnet1 is not defined
 
-  - set_fact:
+  - name: FACT routetable_private_1_json
+    set_fact:
       routetable_private_1_json: "{{ routetable_private_1_raw.stdout|from_json }}"
     when: aws_vpc_privsubnet1 is not defined
 
-  - set_fact:
+  - name: "FACT routetable_private_1= {{ routetable_private_1_json.RouteTable.RouteTableId }}"
+    set_fact:
       routetable_private_1: "{{ routetable_private_1_json.RouteTable.RouteTableId }}"
     when: aws_vpc_privsubnet1 is not defined
 
@@ -144,11 +193,13 @@
     register: routetable_private_2_raw
     when: aws_vpc_privsubnet2 is not defined
 
-  - set_fact:
+  - name: FACT  routetable_private_2_json
+    set_fact:
       routetable_private_2_json: "{{ routetable_private_2_raw.stdout|from_json }}"
     when: aws_vpc_privsubnet2 is not defined
 
-  - set_fact:
+  - name: "FACT  routetable_private_2 = {{ routetable_private_2_json.RouteTable.RouteTableId }}"
+    set_fact:
       routetable_private_2: "{{ routetable_private_2_json.RouteTable.RouteTableId }}"
     when: aws_vpc_privsubnet2 is not defined
 
@@ -162,35 +213,46 @@
     when: aws_vpc_privsubnet2 is not defined
 
 
-  - debug: msg="Looks like your VPC, subnetworks and security groups were already configured previously. Check environment yml config for details."
+  - name: "Looks like your VPC, subnetworks and security groups were already configured previously. Check environment yml config for details."
+    debug: msg="Looks like your VPC, subnetworks and security groups were already configured previously. Check environment yml config for details."
     when: aws_vpc_id is defined
 
-  - debug: msg="aws_vpc_id :{{ lookup('aws_vpc_id_from_name', aws_region, readable_env_name + '-vpc') }}"
+  - name: "aws_vpc_id = {{ lookup('aws_vpc_id_from_name', aws_region, readable_env_name + '-vpc-' + aws_region) }}"
+    debug: msg="aws_vpc_id :{{ lookup('aws_vpc_id_from_name', aws_region, readable_env_name + '-vpc-' + aws_region) }}"
     when: aws_vpc_id is not defined
 
-  - debug: msg="aws_vpc_privsubnet1 :{{ aws_vpc_privsubnet1_runtime }}"
+  - name: "aws_vpc_privsubnet1 = {{ aws_vpc_privsubnet1_runtime }}"
+    debug: msg="aws_vpc_privsubnet1 :{{ aws_vpc_privsubnet1_runtime }}"
     when: aws_vpc_privsubnet1 is not defined
 
-  - debug: msg="aws_vpc_privsubnet2 :{{ aws_vpc_privsubnet2_runtime }}"
+  - name: "aws_vpc_privsubnet2 ={{ aws_vpc_privsubnet2_runtime }}"
+    debug: msg="aws_vpc_privsubnet2 :{{ aws_vpc_privsubnet2_runtime }}"
     when: aws_vpc_privsubnet2 is not defined
 
-  - debug: msg="aws_vpc_pubsubnet1 :{{ aws_vpc_pubsubnet1_runtime }}"
+  - name: "aws_vpc_pubsubnet1 ={{ aws_vpc_pubsubnet1_runtime }}"
+    debug: msg="aws_vpc_pubsubnet1 :{{ aws_vpc_pubsubnet1_runtime }}"
     when: aws_vpc_pubsubnet1 is not defined
 
-  - debug: msg="aws_vpc_pubsubnet2 :{{ aws_vpc_pubsubnet2_runtime }}"
+  - name: "aws_vpc_pubsubnet2 ={{ aws_vpc_pubsubnet2_runtime }}"
+    debug: msg="aws_vpc_pubsubnet2 :{{ aws_vpc_pubsubnet2_runtime }}"
     when: aws_vpc_pubsubnet2 is not defined
 
-  - debug: msg="aws_sg_public :{{ lookup('aws_secgroup_ids_from_names', aws_region, [readable_env_name + '-public-LOADBALANCER']) }}"
-    when: aws_sg_public is not defined
+  - name: "aws_sg_pub ={{ lookup('aws_secgroup_ids_from_names', aws_region, [readable_env_name + '-public-ELB']) }}"
+    debug: msg="aws_sg_pub :{{ lookup('aws_secgroup_ids_from_names', aws_region, [readable_env_name + '-public-ELB']) }}"
+    when: aws_sg_pub is not defined
 
-  - debug: msg="aws_sg_app :{{ lookup('aws_secgroup_ids_from_names', aws_region, [readable_env_name + '-private-APP']) }}"
-    when: aws_sg_app is not defined
+  - name: "aws_sg_api ={{ lookup('aws_secgroup_ids_from_names', aws_region, [readable_env_name + '-private-CLUSTER']) }}"
+    debug: msg="aws_sg_api :{{ lookup('aws_secgroup_ids_from_names', aws_region, [readable_env_name + '-private-CLUSTER']) }}"
+    when: aws_sg_api is not defined
 
-  - debug: msg="aws_sg_private :{{ lookup('aws_secgroup_ids_from_names', aws_region, [readable_env_name + '-private-DATABASE']) }}"
-    when: aws_sg_private is not defined
+  - name: "aws_sg_priv ={{ lookup('aws_secgroup_ids_from_names', aws_region, [readable_env_name + '-private-MONGO']) }}"
+    debug: msg="aws_sg_priv :{{ lookup('aws_secgroup_ids_from_names', aws_region, [readable_env_name + '-private-MONGO']) }}"
+    when: aws_sg_priv is not defined
 
+  - template: src="{{root_dir}}/templates/aws-region-env.yml.j2" dest="{{root_dir}}/boxes/aws-{{aws_region}}-{{env}}-vars.yml"
 
-  - fail: msg="If you just created VPC, time to stop and create environment file aws-REGION-ENV.yml so the application deployment recipe may use these data"
+  - name: "If you just created VPC, time to stop and create environment file aws-REGION-ENV-vars.yml and store parameters listed above. For next run We need two of them aws_vpc_privsubnet1 and aws_vpc_privsubnet2"
+    debug: msg="If you just created VPC, time to stop and create environment file aws-REGION-ENV-vars.yml and store parameters listed above. For next run We need two of them aws_vpc_privsubnet1 and aws_vpc_privsubnet2"
     when: "{{item}} is not defined"
     with_items:
      - aws_vpc_privsubnet1

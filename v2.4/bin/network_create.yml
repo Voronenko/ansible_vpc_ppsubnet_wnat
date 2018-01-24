@@ -2,9 +2,10 @@
 - hosts: all
 
   vars:
-    - root_dir: ..
+    - root_dir: "{{ playbook_dir }}/../"
 
   vars_files:
+    - ./common_vars.yml
     - ./common_infrastructure_vars.yml
 
   pre_tasks:

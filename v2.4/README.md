@@ -20,7 +20,7 @@ For the demo let's choose more complex setup, as described here
 
 Let's take a look on definition, and network topology picture:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/98-nat-gateway-diagram.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/98-nat-gateway-diagram.png)
 
 The configuration for this scenario includes a virtual private cloud (VPC) with a public subnet and a private subnet. We recommend this scenario if you want to run a public-facing web application, while maintaining back-end servers that aren't publicly accessible. A common example is a multi-tier website, with the web servers in a public subnet and the database servers in a private subnet. You can set up security and routing so that the web servers can communicate with the database servers.
 
@@ -33,7 +33,7 @@ In our scenario we will use both functions from Ansible AWS module, and direct a
 
 At the beginning, we would have no VPC on our account:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/00-initial_state.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/00-initial_state.png)
 
 ## Define VPC
 
@@ -47,7 +47,7 @@ As regions have difference in availablility zones sets, let's create two constan
   vpc_availability_zone_t1: b
   vpc_availability_zone_t2: c
 
-  readable_env_name: "app-{{env}}"  
+  readable_env_name: "app-{{env}}"
 
 </pre>
 
@@ -107,21 +107,21 @@ To create VPC, we use already available Ansible module, ec2_vpc; On run we provi
 
 Upon this part execution we will have VPC created alongside with subnets:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/02-vpc.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/02-vpc.png)
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/03-subnets.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/03-subnets.png)
 
 Take a look on Nat gateways created - as you see, we have 1 Nat gateway per public subnet.
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/08-nat_gateways.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/08-nat_gateways.png)
 
 Take a look on route table created, as you see - public subnets have internet gateway set,
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/04-routetable_public.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/04-routetable_public.png)
 
 while private subnet have route entry that forwards outgoing requests through NAT.
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/05-routetable-private.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/05-routetable-private.png)
 
 ## Nat instances magic.
 
@@ -143,7 +143,7 @@ Please note, that by default each account is limited to 5 elastic ips per region
 
 </pre>
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/07-eip.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/07-eip.png)
 
 in order to create NAT gateway, in Ansible v1 we have to use awscli:
 
@@ -157,7 +157,7 @@ in order to create NAT gateway, in Ansible v1 we have to use awscli:
 Here little hack: if you need immediately use Nat gateway, for example, to create custom routing table,-
 give AWS time to partially initialize and register it:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/99-misc-natinstances.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/99-misc-natinstances.png)
 
 Now we can create custom route tables:
 
@@ -190,57 +190,73 @@ Third - for Jump box itself, as I want to limit access to Jump box from my offic
 
 Forth - for my database box, usually  RDS. Assuming, we use MySQL - I need to open 3306 port from APP servers.
 
-<pre>
-vpc_security_groups:
-  - name: "{{readable_env_name}}-public-LOADBALANCER"
-    desc: "security group for public access"
-    rules:
-      - proto: tcp
-        from_port: 80
-        to_port: 80
-        cidr_ip: 0.0.0.0/0
-      - proto: tcp
-        from_port: 443
-        to_port: 443
-        cidr_ip: 0.0.0.0/0
+```YAML
+    vpc_security_groups_elb:
+      - name: "{{readable_env_name}}-public-ELB"
+        desc: "public access"
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 8888
+            to_port: 8888
+            cidr_ip: "{{ vpc_cidr_block }}"
+          - proto: tcp
+            from_port: 443
+            to_port: 443
+            cidr_ip: 0.0.0.0/0
 
-  - name: "{{readable_env_name}}-public-JUMPBOX"
-    desc: "security group that allows access from dedicated jump box in public network to internal resources"
-    rules:
-      - proto: tcp
-        from_port: 22
-        to_port: 22
-        cidr_ip: "1.2.3.4/32" #Your office private ip
+    vpc_security_groups_bastion:
+      - name: "{{readable_env_name}}-public-BASTION"
+        desc: "allow ssh jump box to internal resources"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "95.69.193.134/32" #Vyacheslav
 
-  - name: "{{readable_env_name}}-private-APP"
-    desc: "Network for internal app servers"
-    rules:
-      - proto: tcp
-        from_port: 22
-        to_port: 22
-        group_id: "{{readable_env_name}}-public-JUMPBOX"
-      - proto: tcp
-        from_port: 80
-        to_port: 80
-        group_id: "{{readable_env_name}}-public-LOADBALANCER"
-      - proto: tcp
-        from_port: 443
-        to_port: 443
-        group_id: "{{readable_env_name}}-public-LOADBALANCER"
-      - proto: icmp
-        from_port: -1 # icmp type, -1 = any type
-        to_port:  -1 # icmp subtype, -1 = any subtype
-        group_id: "{{readable_env_name}}-public-JUMPBOX"
+    vpc_security_groups_cluster:
+      - name: "{{readable_env_name}}-private-CLUSTER"
+        desc: "ECS Cluster"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-BASTION\".format(readable_env_name)) }}"
+          - proto: tcp
+            from_port: 3000
+            to_port: 3000
+            group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-ELB\".format(readable_env_name)) }}"
+          - proto: tcp
+            from_port: 8000
+            to_port: 8000
+            group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-ELB\".format(readable_env_name)) }}"
+          - proto: tcp
+            from_port: 8200
+            to_port: 8200
+            group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-ELB\".format(readable_env_name)) }}"
+          - proto: icmp
+            from_port: -1 # icmp type, -1 = any type
+            to_port:  -1 # icmp subtype, -1 = any subtype
+            group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-BASTION\".format(readable_env_name)) }}"
 
-  - name: "{{readable_env_name}}-private-DATABASE"
-    desc: "resources that are private"
-    rules:
-      - proto: tcp
-        from_port: 3306  # MYSQL
-        to_port: 3306
-        group_id: "{{readable_env_name}}-private-APP"
+    vpc_security_groups_datalayer:
+      - name: "{{readable_env_name}}-private-DATALAYER"
+        desc: "Private data store"
+        rules:
+          - proto: tcp
+            from_port: 6379
+            to_port: 6379
+            group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-private-CLUSTER\".format(readable_env_name)) }}"
+            group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-private-CLUSTER\".format(readable_env_name)) }}"
+          - proto: icmp
+            from_port: -1 # icmp type, -1 = any type
+            to_port:  -1 # icmp subtype, -1 = any subtype
+            group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-CLUSTER\".format(readable_env_name)) }}"
 
-</pre>
+```
 
 Don't you find setup readable from definition?  I do.
 
@@ -248,23 +264,23 @@ Let's check setup created:
 
 List of secutity groups created:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/09-sg.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/09-sg.png)
 
 Public security group with inbound rules:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/10-sg_public.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/10-sg_public.png)
 
 Private app servers group with inbound rules:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/11_sg_app.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/11_sg_app.png)
 
 Database access security group with inbound rules:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/12_sg_rds.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/12_sg_rds.png)
 
 Jump box security group with inbound rules:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/14_sg_jumpbox.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/14_sg_jumpbox.png)
 
 
 ## Running the provisioning
@@ -274,7 +290,7 @@ Running ansible provisioning is as easy as executing shell file of the structure
 As you see, we specify environment name (demo), desired region to create VPC in (us-east-1),
 and set your secure AWS credentials as environment variables for provisioning.
 
-<pre>
+```bash
 
 #!/bin/sh
 
@@ -304,21 +320,21 @@ provision $BOX_NAME
 unregister $BOX_NAME
 EOF
 
-</pre>
+```
 
 Wondering how long it will take?  Less then 1 minute. Compare to manual setup ....
 
-<pre>
+```bash
 
 PLAY RECAP ********************************************************************
 127.0.0.1                  : ok=42   changed=12   unreachable=0    failed=0   
 
-</pre>
+```
 
 At the end you will have all the information about network created, so you can store it,
 or template to some configuration file:
 
-![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2/images/01-provisioning.png)
+![](https://raw.githubusercontent.com/Voronenko/ansible_vpc_ppsubnet_wnat/master/v2.4/images/01-provisioning.png)
 
 
 ## Points of Interest

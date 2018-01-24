@@ -1,74 +1,106 @@
+--- #
   readable_env_name: "app-{{env}}"
 
   vpc_cidr_block: 10.0.0.0/16
   vpc_subnets:
-    - cidr: 10.0.0.0/24
+    - cidr: 10.0.0.0/20
       az: "{{aws_region}}{{vpc_availability_zone_t1}}"
-      resource_tags: {"Name": "{{readable_env_name}}-sb-pub-{{aws_region}}-{{vpc_availability_zone_t1}}",  "Environment":"{{readable_env_name}}", "AZ" : "{{vpc_availability_zone_t1}}" }
-    - cidr: 10.0.2.0/24
+      resource_tags: {"Name": "{{readable_env_name}}-sb-pub-{{aws_region}}-{{vpc_availability_zone_t1}}",  "Environment":"{{readable_env_name}}", "Tier" : "1" }
+    - cidr: 10.0.16.0/20
       az: "{{aws_region}}{{vpc_availability_zone_t2}}"
-      resource_tags: { "Name": "{{readable_env_name}}-sb-pub-{{aws_region}}-{{vpc_availability_zone_t2}}", "Environment":"{{readable_env_name}}", "AZ" : "{{vpc_availability_zone_t2}}" }
-    - cidr: 10.0.1.0/24
+      resource_tags: { "Name": "{{readable_env_name}}-sb-pub-{{aws_region}}-{{vpc_availability_zone_t2}}", "Environment":"{{readable_env_name}}", "Tier" : "1" }
+    - cidr: 10.0.32.0/20
       az: "{{aws_region}}{{vpc_availability_zone_t1}}"
-      resource_tags: {"Name": "{{readable_env_name}}-sb-priv-{{aws_region}}-{{vpc_availability_zone_t1}}",  "Environment":"{{readable_env_name}}", "AZ" : "{{vpc_availability_zone_t1}}" }
-    - cidr: 10.0.3.0/24
+      resource_tags: {"Name": "{{readable_env_name}}-sb-priv-{{aws_region}}-{{vpc_availability_zone_t1}}",  "Environment":"{{readable_env_name}}", "Tier" : "2" }
+    - cidr: 10.0.48.0/20
       az: "{{aws_region}}{{vpc_availability_zone_t2}}"
-      resource_tags: { "Name": "{{readable_env_name}}-sb-priv-{{aws_region}}-{{vpc_availability_zone_t2}}", "Environment":"{{readable_env_name}}", "AZ" : "{{vpc_availability_zone_t2}}" }
+      resource_tags: { "Name": "{{readable_env_name}}-sb-priv-{{aws_region}}-{{vpc_availability_zone_t2}}", "Environment":"{{readable_env_name}}", "Tier" : "2" }
 
   vpc_internet_gateway: "yes"
   vpc_route_tables_public:
       - subnets:
-         - 10.0.0.0/24
-         - 10.0.2.0/24
+         - 10.0.0.0/20
+         - 10.0.16.0/20
         routes:
          - dest: 0.0.0.0/0
            gw: igw
 
-  vpc_security_groups:
-    - name: "{{readable_env_name}}-public-LOADBALANCER"
-      desc: "security group for public access"
+  vpc_security_groups_elb:
+    - name: "{{readable_env_name}}-public-ELB"
+      desc: "public access"
       rules:
         - proto: tcp
           from_port: 80
           to_port: 80
           cidr_ip: 0.0.0.0/0
         - proto: tcp
+          from_port: 8888
+          to_port: 8888
+          cidr_ip: "{{ vpc_cidr_block }}"
+        - proto: tcp
           from_port: 443
           to_port: 443
           cidr_ip: 0.0.0.0/0
 
-    - name: "{{readable_env_name}}-public-JUMPBOX"
-      desc: "security group that allows access from dedicated jump box in public network to internal resources"
+  vpc_security_groups_bastion:
+    - name: "{{readable_env_name}}-public-BASTION"
+      desc: "allow ssh jump box to internal resources"
       rules:
         - proto: tcp
           from_port: 22
           to_port: 22
-          cidr_ip: "1.2.3.4/32" #Your office private ip
+          cidr_ip: "95.69.193.134/32" #Vyacheslav
 
-    - name: "{{readable_env_name}}-private-APP"
-      desc: "Network for internal app servers"
+  vpc_security_groups_cluster:
+    - name: "{{readable_env_name}}-private-CLUSTER"
+      desc: "ECS Cluster"
       rules:
         - proto: tcp
           from_port: 22
           to_port: 22
-          group_id: "{{readable_env_name}}-public-JUMPBOX"
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-BASTION\".format(readable_env_name)) }}"
         - proto: tcp
-          from_port: 80
-          to_port: 80
-          group_id: "{{readable_env_name}}-public-LOADBALANCER"
+          from_port: 3000
+          to_port: 3000
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-ELB\".format(readable_env_name)) }}"
         - proto: tcp
-          from_port: 443
-          to_port: 443
-          group_id: "{{readable_env_name}}-public-LOADBALANCER"
+          from_port: 8000
+          to_port: 8000
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-ELB\".format(readable_env_name)) }}"
+        - proto: tcp
+          from_port: 8200
+          to_port: 8200
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-ELB\".format(readable_env_name)) }}"
         - proto: icmp
           from_port: -1 # icmp type, -1 = any type
           to_port:  -1 # icmp subtype, -1 = any subtype
-          group_id: "{{readable_env_name}}-public-JUMPBOX"
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-BASTION\".format(readable_env_name)) }}"
 
-    - name: "{{readable_env_name}}-private-DATABASE"
-      desc: "resources that are private"
+  vpc_security_groups_datalayer:
+    - name: "{{readable_env_name}}-private-DATALAYER"
+      desc: "Private mongo ports"
       rules:
         - proto: tcp
-          from_port: 3306  # MYSQL
-          to_port: 3306
-          group_id: "{{readable_env_name}}-private-APP"
+          from_port: 6379  
+          to_port: 6379
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-private-CLUSTER\".format(readable_env_name)) }}"
+        - proto: tcp
+          from_port: 27017 
+          to_port: 27017
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-private-CLUSTER\".format(readable_env_name)) }}"
+        - proto: tcp
+          from_port: 27018 
+          to_port: 27018
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-private-CLUSTER\".format(readable_env_name)) }}"
+        - proto: tcp
+          from_port: 27019 
+          to_port: 27019
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-private-CLUSTER\".format(readable_env_name)) }}"
+        - proto: tcp
+          from_port: 28017 
+          to_port: 28017
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-private-CLUSTER\".format(readable_env_name)) }}"
+        - proto: icmp
+          from_port: -1 # icmp type, -1 = any type
+          to_port:  -1 # icmp subtype, -1 = any subtype
+          group_id: "{{ lookup('aws_secgroup_id_by_name', aws_region, \"{0}-public-CLUSTER\".format(readable_env_name)) }}"

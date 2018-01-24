@@ -1,4 +1,5 @@
 """
+https://github.com/Voronenko/ansible-developer_recipes/tree/master/ansible_extras
 Description: This lookup takes an AWS region and an elastic ip address
 and returns the allocation id.
 Example Usage:
@@ -13,7 +14,7 @@ __metaclass__ = type
 try:
     import boto.vpc
 except ImportError:
-    raise AnsibleError("aws_vpc_id_from_name lookup cannot be run without boto installed")
+    raise AnsibleError("aws_ec2_allocation_id_from_eip lookup cannot be run without boto installed")
 
 
 class LookupModule(LookupBase):
